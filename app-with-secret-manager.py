@@ -1,4 +1,4 @@
-import boto3
+import boto3  #pip3 install boto3
 from botocore.exceptions import ClientError
 from flask import Flask
 from flaskext.mysql import MySQL
