@@ -1,17 +1,46 @@
-# Import Flask modules
-from flask import Flask, render_template, request
+import boto3
+from botocore.exceptions import ClientError
+from flask import Flask
 from flaskext.mysql import MySQL
+import json
+from flask import request, render_template
 
+app = Flask(__name__)
 
-# Create an object named app
+# Function to retrieve secrets from AWS Secrets Manager
+def get_secret():
+    secret_name = "paul-aws-flask-demo-credential"
+    region_name = "us-east-1"
+
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except ClientError as e:
+        raise e
+
+    # Parse the secret string as JSON
+    secret = json.loads(get_secret_value_response['SecretString'])
+    
+    return secret
+
+# Retrieve the secrets
+secrets = get_secret()
+
 app = Flask(__name__)
 
 # Configure mysql database
-app.config['MYSQL_DATABASE_HOST'] = 'angvan-flask-db11.cyx68qs6skz5.us-east-1.rds.amazonaws.com'
-app.config['MYSQL_DATABASE_USER'] = 'admin'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'Ondia_11'
-app.config['MYSQL_DATABASE_DB'] = 'ondia'
-app.config['MYSQL_DATABASE_PORT'] = 3306
+app.config['MYSQL_DATABASE_HOST'] = secrets['host']
+app.config['MYSQL_DATABASE_USER'] = secrets['username']
+app.config['MYSQL_DATABASE_PASSWORD'] = secrets['password']
+app.config['MYSQL_DATABASE_DB'] = secrets['dbname']
+app.config['MYSQL_DATABASE_PORT'] = secrets['port']
 mysql = MySQL()
 mysql.init_app(app)
 connection = mysql.connect()
@@ -44,6 +73,7 @@ cursor.execute(data)
 
 # Write a function named `find_emails` which find emails using keyword from the user table in the db,
 # and returns result as tuples `(name, email)`.
+
 def find_emails(keyword):
     query = f"""
     SELECT * FROM users WHERE username like '%{keyword}%';
